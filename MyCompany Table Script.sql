@@ -25,6 +25,8 @@ go
 -- order of dropping is IMPORTANT
 -- foreign key tables MUST be dropped BEFORE the primary key table
 --    referred to as child before parent
+drop table ItemsOnOrder
+drop table Items
 drop table Orders
 drop table Customers
 go
@@ -58,5 +60,39 @@ CREATE TABLE Orders
 	CustomerNumber int NOT NULL
 		CONSTRAINT FK_OrdersCustomers_CustomerNumber foreign key
 			references Customers(CustomerNumber)
+)
+go
+CREATE TABLE Items
+(
+	ItemNumber int IDENTITY (1,1) NOT NULL
+		CONSTRAINT PK_Items_ItemNumber primary key,
+	Description varchar(150) NOT NULL,
+	CurrentPrice money NOT NULL
+)
+go
+-- this is a table with a compound primary key
+-- the foreign keys point to the parent tables
+-- the CONSTRAINT that will define the primary key
+--		of this table is done as a table constraint
+-- the CONSTRAINT on the foreign key is a column constraint
+-- the difference between a column constraint and a table
+--		constraint is that a column constraint refers ONLY
+--		to the column the where constraint is attached; whereas
+--		a table constraint MAY referred to multiple columns
+--		and is coded at the end of the table definition
+
+CREATE TABLE ItemsOnOrder
+(
+	ItemNumber int NOT NULL
+		CONSTRAINT FK_ItemsOnOrderItems_ItemNumber foreign key
+			references Items(ItemNumber),
+	OrderNumber int NOT NULL
+		CONSTRAINT FK_ItemsOnOrderOrders_OrderNumber foreign key
+			references Orders(OrderNumber),
+	Quantity int NOT NULL,
+	Price money NOT NULL,
+	Amount money NOT NULL,
+	CONSTRAINT PK_ItemsOnOrder_ItemNumberOrderNumber
+		primary key (ItemNumber,OrderNumber)
 )
 go
