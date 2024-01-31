@@ -35,13 +35,21 @@ go
 --		thus primary keys NEED to exist BEFORE they can be used
 --		as a foreign key
 -- each create table MUST be in its own batch
+
+-- when a table is created an index is created for the primary
+--		key
+--you can describe how the index is to be organized using the
+--		keywords clustered and non-clustered
+--a table may have many indexes HOWEVER ONLY ONE may be clustered
 CREATE TABLE Customers
 (
 	CustomerNumber int IDENTITY (1,1) NOT NULL
-		CONSTRAINT PK_Customers_CustomerNumber primary key,
+		CONSTRAINT PK_Customers_CustomerNumber primary key clustered,
 	LastName varchar(50) NOT NULL,
 	FirstName varchar(20) NOT NULL,
 	Phone varchar(14) NULL
+		CONSTRAINT CK_Customers_Phone
+			CHECK (Phone like '[0-9][0-9][0-9][ -][0-9][0-9][0-9][ -][0-9][0-9][0-9][0-9]')
 )
 go
 -- it is foreign keys that form the relationships between
@@ -52,20 +60,28 @@ go
 CREATE TABLE Orders
 (
 	OrderNumber int IDENTITY (5,1) NOT NULL
-		CONSTRAINT PK_Orders_OrderNumber primary key,
-	OrderDate datetime NOT NULL,
-	SubTotal money NOT NULL,
+		CONSTRAINT PK_Orders_OrderNumber primary key clustered,
+	OrderDate datetime NOT NULL
+		CONSTRAINT CK_Orders_OrderDate 
+			CHECK(OrderDate >= GetDate()),
+	ShippedDate datetime NOT NULL,
+	SubTotal money NOT NULL
+		CONSTRAINT CK_Orders_SubTotal
+			CHECK (SubTotal >= 0.00),
 	GST money NOT NULL,
 	Total money NOT NULL,
 	CustomerNumber int NOT NULL
-		CONSTRAINT FK_OrdersCustomers_CustomerNumber foreign key
-			references Customers(CustomerNumber)
+		CONSTRAINT FK_OrdersCustomers_CustomerNumber 
+			foreign key (CustomerNumber)
+			references Customers(CustomerNumber),
+	CONSTRAINT CK_Orders_OrderDateShippedDate
+				CHECK(ShippedDate >= OrderDate)
 )
 go
 CREATE TABLE Items
 (
 	ItemNumber int IDENTITY (1,1) NOT NULL
-		CONSTRAINT PK_Items_ItemNumber primary key,
+		CONSTRAINT PK_Items_ItemNumber primary key clustered,
 	Description varchar(150) NOT NULL,
 	CurrentPrice money NOT NULL
 )
@@ -89,10 +105,11 @@ CREATE TABLE ItemsOnOrder
 	OrderNumber int NOT NULL
 		CONSTRAINT FK_ItemsOnOrderOrders_OrderNumber foreign key
 			references Orders(OrderNumber),
-	Quantity int NOT NULL,
+	Quantity int NOT NULL
+		CONSTRAINT DF_ItemsOnOrder_Quantity DEFAULT 1,
 	Price money NOT NULL,
 	Amount money NOT NULL,
 	CONSTRAINT PK_ItemsOnOrder_ItemNumberOrderNumber
-		primary key (ItemNumber,OrderNumber)
+		primary key clustered (ItemNumber, OrderNumber) 
 )
 go
