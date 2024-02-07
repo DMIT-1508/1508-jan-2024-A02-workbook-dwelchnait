@@ -1,5 +1,5 @@
 -- the command to create a database is: CREATE DATABASE databasename
--- CREATE DATABASE MyCompany
+--CREATE DATABASE MyCompany
 
 
 -- the use command will indicate which item to use
