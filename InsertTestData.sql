@@ -46,7 +46,7 @@ VALUES(123,'2023-05-23','2023-05-24',64.27,3.21,67.48,2)
 INSERT INTO Orders (OrderNumber, OrderDate, ShippedDate, SubTotal, GST, Total, CustomerNumber)
 VALUES(721,'2024-01-23','2024-01-26',249.46,12.47,261.93,2)
 INSERT INTO Orders (OrderNumber, OrderDate, ShippedDate, SubTotal, GST, Total, CustomerNumber)
-VALUES(801,GETDATE(),GETDATE(),43.89,2.19,46.08,1)
+VALUES(801,GETDATE(),GETDATE(),67.38,3.37,70.75,1)
 SET IDENTITY_INSERT Orders OFF
 go
 Alter TABLE Orders check Constraint CK_Orders_OrderDate
@@ -69,6 +69,11 @@ INSERT INTO ItemsOnOrder (ItemNumber,OrderNumber, Quantity, Price)
 VALUES(44,721,7,11.29)
 INSERT INTO ItemsOnOrder (ItemNumber,OrderNumber, Quantity, Price)
 VALUES(32,801,1,43.89)
+--this insert will demonstration the default on Quantity of 1
+--note the column is not listed in the supplied attribute list and
+--		ther is no quantity value in VALUES
+INSERT INTO ItemsOnOrder (ItemNumber,OrderNumber,  Price)
+VALUES(3,801,23.49)
 go
 
 --
@@ -76,3 +81,21 @@ go
 -- BAD records caught by check constraints
 --
 --
+-- Customers
+-- bad Phone
+INSERT INTO Customers VALUES('Phone','IsBad','(780)4567654','BadVille','AB')
+-- Bad Province
+INSERT INTO Customers VALUES('Province','IsBad','780-456-7654','BadVille','ON')
+--
+-- Items
+-- Bad CurrentPrice
+INSERT INTO Items VALUES('Negative Price',-1.00)
+--
+-- Orders
+-- Bad OrderDate in the past
+INSERT INTO Orders VALUES('2023-02-22','2024-02-23',43.89,2.19,46.08,1)
+-- Bad ShippedDate before OrderDate
+INSERT INTO Orders VALUES('2024-02-22','2023-02-23',43.89,2.19,46.08,1)
+-- Bad Subtotal, negative value
+INSERT INTO Orders VALUES('2024-02-22','2024-02-23',-43.89,2.19,46.08,1)
+
