@@ -83,14 +83,95 @@ go
 exec BalanceOrNoBalance 200495500
 go
 
---SELECT r.studentid, sum(CourseCost), 'COST'
---FROM Course c inner join Offering o
---      on c.CourseId = o.CourseId
---	          inner join Registration r
---	  on o.OfferingCode = r.OfferingCode
---GROUP BY r.studentid
---union
---SELECT studentid, sum(Amount), 'PAY'
---FROM Payment 
---GROUP BY StudentID
---ORDER BY 1
+--Create a stored procedure called ‘DoubleOrNothin’. 
+--It will accept a student’s first name and last name as parameters. 
+--If the student’s name already is in the table, 
+--then print ‘We already have a student with the name firstname lastname!’ 
+--Otherwise print ‘Welcome firstname lastname!’
+
+DROP PROCEDURE DoubleOrNothin
+go
+
+CREATE PROCEDURE DoubleOrNothin(@firstname varchar(25), @lastname varchar(35))
+AS
+--the IF EXISTS does not actually allow for seeing the returned data
+--it checks to see if any row is returned (true) or not (false)
+--On this particular test the * is allowed in the SELECT
+IF EXISTS(SELECT * FROM Student WHERE FirstName = @firstname AND LastName = @lastname)
+BEGIN
+	PRINT 'We already have a student with the name ' + @firstname + ' ' + @lastname
+END
+ELSE
+BEGIN
+	PRINT 'Welcome ' + @firstname + ' ' + @lastname
+END
+RETURN
+go
+exec DoubleOrNothin 'Don','Welch'
+exec DoubleOrNothin 'Joe','Cool'
+go
+
+--Create a procedure called ‘StaffRewards’. 
+--It will accept a staff ID as a parameter. 
+--If the number of classes the staff member has ever taught is 
+--  between 0 and 10 print ‘Well done!’, 
+--if it is between 11 and 20 print ‘Exceptional effort!’, 
+--if the number is greater than 20 print ‘Totally Awesome Dude!’
+
+
+DROP PROCEDURE StaffRewards
+go
+
+CREATE PROCEDURE StaffRewards(@staffid int)
+AS
+DECLARE @count int
+SELECT @count = Count(*)
+FROM Offering
+WHERE StaffID = @staffid
+IF (@count = 0)
+BEGIN
+	print 'You have taught nothing'
+END
+ELSE
+BEGIN
+	IF (@count < 5)
+	BEGIN
+		print 'Well done!'
+	END
+	ELSE 
+	BEGIN
+		IF (@count < 10)
+		BEGIN
+			print 'Exceptional effort!'
+		END
+		ELSE
+		BEGIN
+			print 'Totally Awesome Dude!'
+		END
+	END
+END
+RETURN
+go
+
+exec StaffRewards 3
+go
+
+--Create a stored procedure called “HonorCoursesForTerm” to select all the course names 
+--that have average >80% in a specified semester. The semester will be given at execution time.
+
+DROP PROCEDURE HonorCoursesForTerm
+go
+CREATE PROCEDURE HonorCoursesForTerm(@semestercode char(5))
+AS
+SELECT CourseName, avg(Mark)
+FROM Course c inner join Offering o
+       on c.CourseId = o.CourseId
+	          inner join Registration r
+	   on o.OfferingCode = r.OfferingCode
+WHERE SemesterCode like @semestercode + '%'
+GROUP BY c.CourseID, CourseName
+HAVING avg(Mark) > 80
+RETURN
+go
+exec HonorCoursesForTerm 'A200'
+go
