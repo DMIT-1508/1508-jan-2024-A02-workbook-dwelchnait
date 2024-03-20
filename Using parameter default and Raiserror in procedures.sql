@@ -186,8 +186,92 @@ go
 --This parameter will be ‘I’, ‘U’ or ‘D’.  
 --Insert, update, or delete a record accordingly. 
 --Focus on making your code as efficient and maintainable as possible
+DROP Procedure IF EXists ClubMaintenance
+go
 
+CREATE PROCEDURE ClubMaintenance(@clubid varchar(10) = null, 
+								@clubname varchar(50) = null,
+								@type char(1) = null)
+AS
+DECLARE @error int, @rowcount int
+DECLARE @exists bit
+DECLARE @errormsg varchar(150)
 
+IF (@clubid is null or @clubname is null or @type is null)
+BEGIN
+	RAISERROR('You must provide values for clubid, clubname and the type of maintenance (I,U or D)',16,1)
+END
+ELSE
+BEGIN
+	IF @type not in ('I', 'U', 'D')
+	BEGIN
+		RAISERROR('The type of maintenance must be (I,U or D)',16,1)
+	END
+	ELSE
+	BEGIN
+		IF EXISTS (SELECT 'x'
+					FROM Club
+					WHERE ClubId = @clubid)
+		BEGIN
+			SET @exists = 1 --true
+		END
+		ELSE
+		BEGIN
+			SET @exists = 0 --false
+		END
+
+		IF @type = 'I'
+		BEGIN
+			--INSERT, clubid should not exist
+			IF @exists = 1
+			BEGIN
+				SET @errormsg ='Clubid ' + @clubid + ' already is on the database. Insert fails'
+				RAISERROR(@errormsg,16,1)
+			END
+			ELSE
+			BEGIN
+				exec AddClub @clubid,@clubname
+			END
+		END
+		ELSE
+		BEGIN
+			IF @exists = 0
+			BEGIN
+				SET @errormsg ='Clubid ' + @clubid + '  not on the database. Update/Delete fails'
+				RAISERROR(@errormsg,16,1)
+			END
+			ELSE
+			BEGIN
+				IF @type = 'U'
+				BEGIN
+					exec UpdateClub @clubid,@clubname
+				END
+				ELSE
+				BEGIN
+					exec DeleteClub @clubid
+				END
+			END
+		END
+	END
+END
+RETURN
+go
+exec ClubMaintenance
+go
+exec ClubMaintenance 'bob1','is your uncle','g'
+go
+exec ClubMaintenance 'bob1','is your uncle','I'
+go
+exec ClubMaintenance 'bobisgood','is your good uncle','I'
+go
+exec ClubMaintenance 'bobbad','is your uncle','U'
+go
+exec ClubMaintenance 'bobbad','is your uncle','D'
+go
+exec ClubMaintenance 'bob1','is your cousin','U'
+go
+exec ClubMaintenance 'bob1','unecessary parameter value','D'
+go
 --Create a stored procedure called ‘RegisterStudent’ that accepts 
 --StudentID and OfferingCode as parameters. 
 --If the number of students in that Offering is not greater than the 
@@ -195,3 +279,90 @@ go
 --and add the cost of the course to the student’s balance. 
 --If the registration would cause the Offering to have greater than the 
 --MaxStudents raise an error
+
+DROP PROCEDURE IF EXISTS RegisterStudent
+go
+CREATE PROCEDURE RegisterStudent(@studentid int = null, @offeringcode int = null)
+AS
+DECLARE @maxSize int,
+		@currentSize int,
+		@error int,
+		@rowcount int
+
+IF (@studentid is null or @offeringcode is null)
+BEGIN
+	RAISERROR('You must provide values for studentid and offeringcode',16,1)
+END
+ELSE
+BEGIN
+	IF not EXISTS (Select 'x' FROM STUDENT WHERE StudentID = @studentid)
+	BEGIN
+		-- substituting a value for a placehoder in your error message
+		-- %i for a number
+		-- %s for a string
+		--syntax: RAISERROR('some messsage value "%s" is incorrect.',16,1,stringvalue)
+		RAISERROR('Student "%i" is not registered in the school',16,1,@studentid)
+	END
+	ELSE
+	BEGIN
+		-- one could also validate that the offering code exists
+		SELECT @maxSize = MaxStudents
+		FROM Course
+		WHERE CourseId in (SELECT CourseId
+							FROM Offering
+							WHERE OfferingCode = @offeringcode)
+
+	    SELECT @currentSize = COUNT(OfferingCode)
+		FROM Registration 
+		WHERE OfferingCode = @offeringcode
+		  AND WithdrawYN != 'Y'
+
+		IF @currentSize = @maxSize
+		BEGIN
+			RAISERROR('Offering is full',16,1)
+		END
+		ELSE
+		BEGIN
+			INSERT INTO Registration(OfferingCode, StudentID, Mark, WithdrawYN)
+			VALUES (@offeringcode, @studentid, null, null)
+			SELECT @error = @@error, @rowcount = @@ROWCOUNT
+			IF @error <> 0
+			BEGIN
+				RAISERROR('Registration has failed. Student is already registered for the offering',16,1)
+			END
+			ELSE
+			BEGIN
+				UPDATE Student
+				Set BalanceOwing = BalanceOwing +
+							(Select CourseCost
+							 FROM Course c inner join Offering o
+								on c.CourseId = o.CourseId
+							 WHERE o.OfferingCode = @offeringcode)
+				WHERE StudentID = @studentid
+				SELECT @error = @@error, @rowcount = @@ROWCOUNT
+				IF @error <> 0
+				BEGIN
+					RAISERROR('Update of student outstanding balance has failed.',16,1)
+				END
+				ELSE
+				BEGIN
+					IF @rowcount <> 0
+					BEGIN
+						RAISERROR('No records were update.',16,1)
+					END
+					ELSE
+					BEGIN
+						SELECT BalanceOwing
+						FROM Student
+						WHERE StudentID = @studentid
+					END
+				END
+			END
+		END
+	END
+END
+RETURN
+go
+RegisterStudent
+go
+RegisterStudent 
